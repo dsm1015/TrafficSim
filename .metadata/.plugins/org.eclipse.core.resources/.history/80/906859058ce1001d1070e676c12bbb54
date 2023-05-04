@@ -1,0 +1,138 @@
+package edu.sru.dsm1015.TrafficSim.agent;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Set;
+
+import edu.sru.dsm1015.TrafficSim.grid.Cell;
+import edu.sru.dsm1015.TrafficSim.grid.Coordinate;
+import edu.sru.dsm1015.TrafficSim.grid.Grid;
+
+public class Route {
+	private CoordinateQueue route;
+	private Coordinate start;
+	private Coordinate destination;
+	private int index;
+	private Route internalRoute;
+	private DepthFirstSearchEngine searchEngine;
+	
+	public Route(Grid grid, Coordinate start, Coordinate destination) {
+		this.start = start;
+		this.destination = destination;
+		this.route = createRoute(grid, start, destination);
+	}
+	
+	//TEST
+	public Route(Coordinate start, List<Coordinate> points, Coordinate destination) {
+		this.start = start;
+		this.destination = destination;
+		//this.route = createCustomRoute(start, points, destination);
+	}
+	
+	public CoordinateQueue createRoute(Grid grid, Coordinate start, Coordinate destination) {
+		this.index = 0;
+		this.searchEngine = new DepthFirstSearchEngine(grid, start, destination);
+		Location[] path = searchEngine.getPath();
+		searchEngine.printPath(path);
+		
+		CoordinateQueue queue = new CoordinateQueue();
+		
+		for (int i = path.length - 1; i >= 0; i--) {
+		    Location location = path[i];
+		    if (location != null) {
+		        queue.addToBackOfQueue(new Coordinate(location.x, location.y));
+		    }
+		}
+
+		
+		return queue;
+	}
+	
+	// step through route
+	public void stepRoute() {
+		if(!route.isEmpty()) {
+			route.removeFromFrontOfQueue();
+		}
+	}
+	
+	protected class CoordinateQueue {
+		private Coordinate [] queue;
+        private int tail, head, len;
+        public CoordinateQueue(int num) {
+            queue = new Coordinate[num];
+            head = tail = 0;
+            len = num;
+        }
+        public CoordinateQueue() {
+            this(400);
+        }
+        public void addToBackOfQueue(Coordinate n) {
+            queue[tail] = n;
+            if (tail >= (len - 1)) {
+                tail = 0;
+            } else {
+                tail++;
+            }
+        }
+        public Coordinate removeFromFrontOfQueue() {
+        	Coordinate ret = queue[head];
+            if (head >= (len - 1)) {
+                head = 0;
+            } else {
+                head++;
+            }
+            return ret;
+        }
+        public boolean isEmpty() {
+            return head == (tail + 1);
+        }
+        public Coordinate peekAtFrontOfQueue() {
+            return queue[head];
+        }
+    }
+	
+	
+	public CoordinateQueue getRoute(){
+		return this.route;
+	}
+	
+	public Coordinate getStart() {
+		return this.start;
+	}
+	
+	public Coordinate getDestination() {
+		return this.destination;
+	}
+	
+	public int routeLength() {
+		return route.len;
+	}
+	
+	public Coordinate peekRoute() {
+		return route.peekAtFrontOfQueue();
+	}
+	
+	public Coordinate dequeueRoute() {
+		return route.removeFromFrontOfQueue();
+	}
+	
+	public void setIndex(int i) {
+		this.index = i;
+	}
+	
+	public int getIndex() {
+		return this.index;
+	}
+	
+	public Route getInternalRoute() {
+		return this.internalRoute;
+	}
+	
+	public void setInternalRoute(Route internalRoute) {
+		this.internalRoute = internalRoute;
+	}
+}
+

@@ -1,0 +1,447 @@
+package edu.sru.dsm1015.TrafficSim.gui;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.GridLayout;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.List;
+
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JLayeredPane;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.OverlayLayout;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.border.EmptyBorder;
+
+import edu.sru.dsm1015.TrafficSim.agent.Citizen;
+import edu.sru.dsm1015.TrafficSim.engine.SimEngine;
+import edu.sru.dsm1015.TrafficSim.grid.Cell;
+import edu.sru.dsm1015.TrafficSim.grid.Coordinate;
+import edu.sru.dsm1015.TrafficSim.grid.Grid;
+import edu.sru.dsm1015.TrafficSim.grid.RoadCell;
+import edu.sru.dsm1015.TrafficSim.grid.ZoneCell;
+import java.awt.Canvas;
+import java.awt.Color;
+import java.awt.Component;
+
+import javax.swing.UIManager;
+import java.awt.CardLayout;
+import javax.swing.border.BevelBorder;
+
+public class GUI extends JFrame {
+
+	protected Grid grid;
+    private JPanel gPanel;
+    private JPanel combinedPanel;
+    private JLayeredPane lPane;
+    private JLayeredPane circleLayer;
+    private TrafficDensityOverlay trafficOverlay;
+    private WaypointOverlay waypointOverlay;
+    // menu 
+    JMenu cellMenu, zoneSubMenu, citizenMenu, playMenu, OverlayMenu;
+    JMenuItem roadMenuItem, zoneItem1, zoneItem2, zoneItem3, clearItem, addCitizen,
+    	playItem, stopItem, viewItem, TrafficDensityItem, AttractionItem, CitizenItem, BFSItem, DFSItem;
+    private JLabel selectionIndicator;
+    
+    private JDialog cellInfoDialog;
+    
+    private SimEngine engine;
+    
+    String currentSelection;
+    
+	public GUI(Grid grid) {
+        this.grid = grid;
+        // Set up the main window
+        setTitle("CitySim");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setPreferredSize(new Dimension(1100, 1100));
+        
+
+        // Create a layered pane to hold the grid display and the circles
+        this.lPane = new JLayeredPane();
+        lPane.setLayout(null);
+        getContentPane().add(lPane, BorderLayout.CENTER);
+        
+        // Create a layer to hold the circles
+        this.circleLayer = new JLayeredPane();
+        circleLayer.setBounds(0, 0, 1000, 1000);
+        circleLayer.setBackground(Color.blue);
+        circleLayer.setLayout(null);
+        lPane.add(circleLayer, JLayeredPane.PALETTE_LAYER);
+        
+        // Create a panel to hold the grid display
+        this.gPanel = new JPanel();
+        gPanel.setLayout(new GridLayout(grid.getWidth(), grid.getHeight(), 0, 0));
+        gPanel.setBackground(Color.green);
+        gPanel.setPreferredSize(new Dimension(1000,1000));
+        gPanel.setBounds(0,0,1000,1000);
+        
+        this.combinedPanel = new JPanel();
+        combinedPanel.setLayout(new OverlayLayout(combinedPanel));
+        combinedPanel.setBounds(0, 0, 1000, 1000);
+        lPane.add(combinedPanel, JLayeredPane.DEFAULT_LAYER);
+
+        //traffic overlay layer
+        this.trafficOverlay = new TrafficDensityOverlay(grid);
+        trafficOverlay.setBounds(0, 0, lPane.getWidth(), lPane.getHeight());
+        lPane.add(trafficOverlay, JLayeredPane.MODAL_LAYER); // Add it above the default layer
+        
+        // Destination overlay layer
+        this.waypointOverlay = new WaypointOverlay(grid);
+        waypointOverlay.setBounds(0, 0, lPane.getWidth(), lPane.getHeight());
+        lPane.add(waypointOverlay, JLayeredPane.MODAL_LAYER); // Add it above the default layer
+        
+        // Initialize selection indicator
+        selectionIndicator = new JLabel("Current selection: None");
+        selectionIndicator.setHorizontalAlignment(SwingConstants.CENTER);
+        getContentPane().add(selectionIndicator, BorderLayout.NORTH);
+        
+        //initialize cell info dialog
+        this.cellInfoDialog = new JDialog(this, "Cell Information", false);
+        cellInfoDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        
+        combinedPanel.add(trafficOverlay);
+        combinedPanel.add(waypointOverlay);
+        combinedPanel.add(gPanel);
+        
+        // Add each cell to the panel
+        for (int i = 0; i < grid.getWidth(); i++) {
+            for (int j = 0; j < grid.getHeight(); j++) {
+                Cell cell = grid.getCell(i, j);
+                Coordinate cellCoordinates = cell.getCoordinates();
+                JButton button = new JButton();
+                button.setBounds(i*100,j*100,100,100);
+                button.setBackground(cell.getColor());
+                cell.setButton(button);
+                // Add a mouse adapter for changing cell types on click and drag
+                button.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mousePressed(MouseEvent e) {
+                        handleCellChange(cellCoordinates);
+                    }
+                });
+
+                button.addMouseMotionListener(new MouseAdapter() {
+                    @Override
+                    public void mouseDragged(MouseEvent e) {
+                        JButton sourceButton = (JButton) e.getSource();
+                        Point locationOnScreen = e.getLocationOnScreen();
+                        SwingUtilities.convertPointFromScreen(locationOnScreen, gPanel);
+                        Component targetComponent = SwingUtilities.getDeepestComponentAt(gPanel, locationOnScreen.x, locationOnScreen.y);
+                        if (targetComponent != null && targetComponent instanceof JButton && targetComponent != sourceButton) {
+                            JButton targetButton = (JButton) targetComponent;
+                            Coordinate targetCellCoordinates = getCellCoordinatesFromButton(targetButton);
+                            if (targetCellCoordinates != null) {
+                                handleCellChange(targetCellCoordinates);
+                            }
+                        }
+                    }
+                });
+                gPanel.add(button);
+            }
+        }
+        
+
+        // initialize current selection
+        this.currentSelection = "none";
+
+        // initialize engine
+        this.engine = new SimEngine(this.grid, this.circleLayer, this.trafficOverlay, this.waypointOverlay);
+        
+        // add menus ***
+        JMenuBar menuBar = new JMenuBar();
+        
+        //Cell Menu
+        cellMenu = new JMenu("Cell");
+        zoneSubMenu = new JMenu("Change Zone");
+        roadMenuItem = new JMenuItem("Add Road");
+        roadMenuItem.addActionListener(e -> {
+            updateSelectionIndicator("road");
+        });
+        zoneItem1 = new JMenuItem("Commercial");
+        zoneItem1.addActionListener(e -> {
+        	updateSelectionIndicator("commercial");
+        });
+        zoneItem2 = new JMenuItem("Residential");
+        zoneItem2.addActionListener(e -> {
+        	updateSelectionIndicator("residential");
+        });
+        zoneItem3 = new JMenuItem("Offices");
+        zoneItem3.addActionListener(e -> {
+        	updateSelectionIndicator("offices");
+        });
+        zoneSubMenu.add(zoneItem1);
+        zoneSubMenu.add(zoneItem2);
+        zoneSubMenu.add(zoneItem3);
+        clearItem = new JMenuItem("Remove");
+        clearItem.addActionListener(e -> {
+        	updateSelectionIndicator("none");
+        });
+        cellMenu.add(roadMenuItem);
+        cellMenu.add(zoneSubMenu);
+        cellMenu.add(clearItem);
+        menuBar.add(cellMenu);
+        
+        //Citizen Menu
+        citizenMenu = new JMenu("Citizens");
+        addCitizen = new JMenuItem("Add Citizen");
+        addCitizen.addActionListener(e -> {
+        	updateSelectionIndicator("addCitizen");
+        });
+        BFSItem = new JMenuItem("Breadth First Search");
+        BFSItem.addActionListener(e -> {
+        	this.grid.setSearchAlgorithm("bfs");
+        });
+        DFSItem = new JMenuItem("Depth First Search");
+        DFSItem.addActionListener(e -> {
+        	this.grid.setSearchAlgorithm("dfs");
+        });
+        citizenMenu.add(addCitizen);
+        citizenMenu.add(BFSItem);
+        citizenMenu.add(DFSItem);
+
+        menuBar.add(citizenMenu);
+        
+        //Play
+        playMenu = new JMenu("Play");
+        playItem = new JMenuItem("Start");
+        playItem.addActionListener(e -> {
+            this.engine.start();
+        });
+        stopItem = new JMenuItem("Stop");
+        stopItem.addActionListener(e -> {
+            this.engine.stop();
+        });
+        viewItem = new JMenuItem("View Cell");
+        viewItem.addActionListener(e -> {
+            updateSelectionIndicator("viewCell");
+        });
+        
+        
+        //Overlay Menu
+        OverlayMenu = new JMenu("Toggle Overlays");
+        menuBar.add(OverlayMenu);
+        
+        TrafficDensityItem = new JMenuItem("Traffic Density - OFF");
+        TrafficDensityItem.addActionListener(e -> {
+            this.trafficOverlay.toggleVisibility();
+            if(this.trafficOverlay.isVisible()) {
+            	TrafficDensityItem.setText("Traffic Density - ON");
+            } else {
+            	TrafficDensityItem.setText("Traffic Density - OFF");
+            }
+        });
+        AttractionItem = new JMenuItem("Attraction Rate - OFF");
+        AttractionItem.addActionListener(e -> {
+            this.waypointOverlay.toggleAttractionVisibility();
+            if(this.waypointOverlay.isVisible()) {
+            	AttractionItem.setText("Attraction Rate - ON");
+            } else {
+            	AttractionItem.setText("Attraction Rate - OFF");
+            }
+        });
+        CitizenItem = new JMenuItem("Citizens - ON");
+        CitizenItem.addActionListener(e -> {
+        	if(circleLayer.isVisible()) {
+        		this.circleLayer.setVisible(false);
+        		CitizenItem.setText("Citizens - OFF");
+        	} else {
+        		this.circleLayer.setVisible(true);
+        		CitizenItem.setText("Citizens - ON");
+        	}
+        });
+        
+        
+        OverlayMenu.add(AttractionItem);
+        OverlayMenu.add(TrafficDensityItem);
+        OverlayMenu.add(CitizenItem);
+        
+        playMenu.add(playItem);
+        playMenu.add(stopItem);
+        playMenu.add(viewItem);
+        menuBar.add(playMenu);
+        
+        setJMenuBar(menuBar);
+
+
+        // Pack the window and display it
+        pack();
+        setVisible(true);     
+    }
+	
+	private void handleCellChange(Coordinate cellCoordinates) {
+		if (currentSelection.equals("viewCell")) {
+			Cell cell = grid.getCell(cellCoordinates);
+
+	        if (cellInfoDialog.isVisible()) {
+	            cellInfoDialog.dispose();
+	        }
+
+	        JTextArea cellInfoTextArea = new JTextArea(cell.toString());
+	        cellInfoTextArea.setEditable(false);
+	        cellInfoDialog.getContentPane().add(new JScrollPane(cellInfoTextArea));
+	        cellInfoDialog.setSize(300, 200);
+	        cellInfoDialog.setVisible(true);
+
+	        // Update the JDialog content periodically using a javax.swing.Timer
+	        Timer timer = new Timer(1000, e -> {
+	            cellInfoTextArea.setText(cell.toString());
+	        });
+	        timer.setRepeats(true);
+	        timer.start();
+
+	        cellInfoDialog.addWindowListener(new WindowAdapter() {
+	            @Override
+	            public void windowClosed(WindowEvent e) {
+	                timer.stop();
+	            }
+	        });
+	    } else {
+		    changeCell(cellCoordinates);
+		    this.engine.setGrid(this.grid); //update engine's grid
+	    }
+	}
+	
+	private Coordinate getCellCoordinatesFromButton(JButton button) {
+	    for (int i = 0; i < grid.getWidth(); i++) {
+	        for (int j = 0; j < grid.getHeight(); j++) {
+	            Cell cell = grid.getCell(i, j);
+	            if (cell.getButton() == button) {
+	                return cell.getCoordinates();
+	            }
+	        }
+	    }
+	    return null;
+	}
+
+	
+	private void updateSelectionIndicator(String text) {
+		this.currentSelection = text;
+	    selectionIndicator.setText("Current selection: " + currentSelection);
+	}
+	
+	public void upgradeCellToRoad(Cell cell){
+
+        if (cell instanceof RoadCell){
+            return;
+        }
+        // Update the button background color to reflect the new cell type
+        JButton button = (JButton) gPanel.getComponent(cell.getCoordinates().getX() * grid.getHeight() + cell.getCoordinates().getY());
+        
+        // Create a new RoadCell with the same coordinates as the current cell
+        RoadCell roadCell = new RoadCell(cell.getCoordinates());
+        button.setBackground(roadCell.getColor());
+        roadCell.setButton(button);
+
+        // Replace the current cell with the RoadCell in the Grid
+        grid.setCell(cell.getCoordinates().getX(), cell.getCoordinates().getY(), roadCell);
+
+    }
+
+    public void upgradeCellToZone(Cell cell, String zoneType){
+
+    	JButton button = (JButton) gPanel.getComponent(cell.getCoordinates().getX() * grid.getHeight() + cell.getCoordinates().getY());
+    	
+        // Create a new RoadCell with the same coordinates as the current cell
+        ZoneCell zoneCell = new ZoneCell(cell.getCoordinates(), zoneType);
+        button.setBackground(zoneCell.getColor());
+        zoneCell.setButton(button);
+ 
+        // Replace the current cell with the RoadCell in the Grid
+        grid.setCell(cell.getCoordinates().getX(), cell.getCoordinates().getY(), zoneCell);
+        
+    }
+
+    public void clearCell(Cell cell){
+
+        // Create a new RoadCell with the same coordinates as the current cell
+        Cell newCell = new Cell(cell.getCoordinates());
+
+        // Replace the current cell with the RoadCell in the Grid
+        grid.setCell(cell.getCoordinates().getX(), cell.getCoordinates().getY(), newCell);
+
+        // Update the button background color to reflect the new cell type
+        JButton button = (JButton) gPanel.getComponent(cell.getCoordinates().getX() * grid.getHeight() + cell.getCoordinates().getY());
+        button.setBackground(newCell.getColor());
+    }
+    
+    public void addCitizen(Cell cell) {
+    	
+    	Citizen citizen = new Citizen(this.grid, cell, circleLayer);
+    	cell.addCitizen(citizen);
+        circleLayer.add(citizen.getCircle(), JLayeredPane.PALETTE_LAYER);
+        this.engine.resetCitizens();
+        
+    }
+   
+
+    public void changeCell(Coordinate cellCoordinates){
+    	Cell cell = grid.getCell(cellCoordinates);
+        switch (this.currentSelection){
+            case "none":
+                clearCell(cell);
+                break;
+            case "road":
+                upgradeCellToRoad(cell);
+                break;
+            case "residential":
+                upgradeCellToZone(cell, "residential");
+                break;
+            case "commercial":
+                upgradeCellToZone(cell, "commercial");
+                break;
+            case "offices":
+                upgradeCellToZone(cell, "offices");
+                break;
+            case "addCitizen":
+            	if (cell instanceof ZoneCell && ((ZoneCell) cell).getZoneType().equals("residential")) {
+                    addCitizen(cell);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Citizens can only be added to residential cells.");
+                }
+      
+        }
+    }
+    
+    
+    /**
+	 * Launch the application.
+	 */
+	
+	public static void main(String[] args) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					// Create a sample grid
+			        Grid grid = new Grid(20, 20);
+			        grid.initialize();
+
+			        // Create the GUI and display the grid
+			        GUI gui = new GUI(grid);
+			        
+			        
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+
+}

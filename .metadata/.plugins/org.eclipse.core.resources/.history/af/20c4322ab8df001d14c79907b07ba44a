@@ -1,0 +1,47 @@
+package edu.sru.dsm1015.TrafficSim.gui;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.util.Set;
+
+import javax.swing.JComponent;
+
+import edu.sru.dsm1015.TrafficSim.agent.Citizen;
+import edu.sru.dsm1015.TrafficSim.grid.Cell;
+import edu.sru.dsm1015.TrafficSim.grid.Grid;
+
+public class WaypointOverlay extends JComponent {
+	
+	private Grid grid;
+
+    public WaypointOverlay(Grid grid) {
+        this.grid = grid;
+        setVisible(false);
+        setOpaque(false); // make the background transparent
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+
+        super.paintComponent(g);
+
+        Graphics2D g2d = (Graphics2D) g;
+        for (int i = 0; i < Grid.getWidth(); i++) {
+            for (int j = 0; j < Grid.getHeight(); j++) {
+                Cell cell = grid.getCell(i, j);
+                int numberOfWaypoints = cell.getWaypoints().size();
+                float intensity = Math.min(1, numberOfWaypoints / 10f);
+                g2d.setColor(new Color(0, 1, 0, intensity));
+                g2d.fillRect(cell.getButton().getX(), cell.getButton().getY(), cell.getButton().getWidth(), cell.getButton().getHeight());
+            }
+        }
+    }
+
+    public void toggleVisibility() {
+    	setVisible(!isVisible()); // Toggle the built-in visibility
+        if (isVisible()) {
+            repaint();
+        }
+    }
+}

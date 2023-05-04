@@ -1,0 +1,5 @@
+package edu.sru.dsm1015.TrafficSim.gui;
+
+public class WaypointOverlay {
+
+}

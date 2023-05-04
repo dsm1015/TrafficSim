@@ -1,0 +1,108 @@
+package edu.sru.dsm1015.TrafficSim.search;
+
+import edu.sru.dsm1015.TrafficSim.agent.Location;
+import edu.sru.dsm1015.TrafficSim.grid.Cell;
+import edu.sru.dsm1015.TrafficSim.grid.Coordinate;
+import edu.sru.dsm1015.TrafficSim.grid.Grid;
+
+/**
+ * 2D Maze Search
+ *
+ * <p/>
+ * Copyright 1998-2012 by Mark Watson. All rights reserved.
+ * <p/>
+ * This software is can be used under either of the following licenses:
+ * <p/>
+ * 1. LGPL v3<br/>
+ * 2. Apache 2
+ * <p/>
+ */
+public class AbstractSearchEngine {
+    public AbstractSearchEngine(Grid grid, Coordinate start, Coordinate goal) {
+    	//create a maze
+        this.grid = grid;
+        
+        //start/goal
+        this.start= start;
+        this.goal = goal;
+        
+        //allocates searchPath of Dimension objects
+        initSearch();
+    }
+    public Grid getGrid() { return grid; }
+    protected Grid grid;
+    /**
+     * We will use the Java type Location (fields width and height will
+     * encode the coordinates in x and y directions) for the search path:
+     */
+    protected Location [] searchPath = null;
+    protected int pathCount;
+    protected int maxDepth;
+    protected Location startLoc, goalLoc, currentLoc;
+    protected boolean isSearching = true;
+    protected Coordinate start, goal;
+
+    //allocates searchPath of Dimension objects
+    protected void initSearch() {
+        if (searchPath == null) {
+            searchPath = new Location[1000];
+            for (int i=0; i<1000; i++) {
+                searchPath[i] = new Location();
+            }
+        }
+        pathCount = 0;
+        startLoc = new Location(start.getX(), start.getY());
+        currentLoc = startLoc;
+        goalLoc = new Location(goal.getX(), goal.getY());
+        searchPath[pathCount++] = currentLoc;
+    }
+
+    protected boolean equals(Location d1, Location d2) {
+        return d1.x == d2.x && d1.y == d2.y;
+    }
+
+    public Location [] getPath() {
+      Location [] ret = new Location[maxDepth];
+      for (int i=0; i<maxDepth; i++) {
+        ret[i] = searchPath[i];
+      }
+      return ret;
+    }
+    
+    public void printPath(Location[] path) {
+        for (Location location : path) {
+            if (location != null) {
+                System.out.println("Location: (" + location.x + ", " + location.y + ")");
+            }
+        }
+        System.out.println();
+    }
+    
+    protected Location [] getPossibleMoves(Location loc) {
+        Location tempMoves [] = new Location[4];
+        tempMoves[0] = tempMoves[1] = tempMoves[2] = tempMoves[3] = null;
+        int x = loc.x;
+        int y = loc.y;
+        int num = 0;
+        Cell leftCell = grid.getCell(x - 1, y);
+        if (leftCell != null && (leftCell.getCellType() == 1 || leftCell == grid.getCell(goal))) {
+            tempMoves[num++] = new Location(x - 1, y);
+        }
+        
+        Cell rightCell = grid.getCell(x + 1, y);
+        if (rightCell != null && (rightCell.getCellType() == 1 || rightCell == grid.getCell(goal))) {
+            tempMoves[num++] = new Location(x + 1, y);
+        }
+        
+        Cell lowerCell = grid.getCell(x, y - 1);
+        if (lowerCell != null && (lowerCell.getCellType() == 1 || lowerCell == grid.getCell(goal))) {
+            tempMoves[num++] = new Location(x, y - 1);
+        }
+        
+        Cell upperCell = grid.getCell(x, y + 1);
+        if (upperCell != null && (upperCell.getCellType() == 1 || upperCell == grid.getCell(goal))) {
+            tempMoves[num++] = new Location(x, y + 1);
+        }
+        return tempMoves;
+    }
+}

@@ -1,0 +1,48 @@
+package edu.sru.dsm1015.TrafficSim.gui;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+
+import javax.swing.JComponent;
+
+import edu.sru.dsm1015.TrafficSim.grid.Cell;
+import edu.sru.dsm1015.TrafficSim.grid.Grid;
+
+public class TrafficDensityOverlay extends JComponent {
+
+    private Grid grid;
+
+    public TrafficDensityOverlay(Grid grid) {
+        this.grid = grid;
+        setVisible(false);
+        setOpaque(false); // make the background transparent
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+    	System.out.println("test");
+        
+        super.paintComponent(g);
+
+        Graphics2D g2d = (Graphics2D) g;
+        for (int i = 0; i < Grid.getWidth(); i++) {
+            for (int j = 0; j < Grid.getHeight(); j++) {
+                Cell cell = grid.getCell(i, j);
+                int density = cell.getCitizens().size(); // adjust this as needed
+                float intensity = Math.min(1, density / 10f); // adjust the denominator for scaling
+                g2d.setColor(new Color(1, 0, 0, intensity));
+                g2d.fillRect(cell.getButton().getX(), cell.getButton().getY(), cell.getButton().getWidth(), cell.getButton().getHeight());
+                System.out.println(density);
+            }
+        }
+    }
+
+    public void toggleVisibility() {
+        System.out.println(!isVisible());
+        setVisible(!isVisible()); // Toggle the built-in visibility
+        if (isVisible()) {
+            repaint();
+        }
+    }
+}
